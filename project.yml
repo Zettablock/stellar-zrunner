@@ -4,4 +4,4 @@ kind: stellar # chain name
 network: mainnet # chain network
 version: 0.0.1
 name: zclient-stellar # required, not space or special chars allowed, must be consistent with the project folder name
-githubRepo: "https://github.com/Zettablock/zclient-stellar"
+githubRepo: "https://github.com/Zettablock/stellar-zrunner"
