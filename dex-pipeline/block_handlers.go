@@ -8,18 +8,19 @@ import (
 	"strconv"
 
 	"github.com/Zettablock/zsource/utils"
-    "github.com/Zettablock/zclient-stellar/dao"
+    "github.com/Zettablock/stellar-zrunner/dao"
 	"github.com/bitly/go-simplejson"
+	"github.com/Zettablock/stellar-zrunner/util"
 )
 
 const (
 	SoroswapPoolsContract = "CA4HEQTL2WPEUYKYKCDOHCDNIV4QHNJ7EL4J4NQ6VADP7SYHVRYZ7AW2"
 	PhoenixPoolsContract = "CB4SVAWJA6TSRNOJZ7W2AWFW46D5VR4ZMFZKDIKXEINZCZEGZCJZCKMI"
-	PhoenixActionContract = "CBISULYO5ZGS32WTNCBMEFCNKNSLFXCQ4Z3XHVDP4X4FLPSEALGSY3PS"
+	//PhoenixActionContract = "CBISULYO5ZGS32WTNCBMEFCNKNSLFXCQ4Z3XHVDP4X4FLPSEALGSY3PS"
 	BlendLendingPoolContract = "CCZD6ESMOGMPWH2KRO4O7RGTAPGTUPFWFQBELQSS7ZUK63V3TZWETGAG"
 	 
 )
-var (
+/*var (
 	SoroswapLiquidityActionContracts = []string{
 		"CACTIOUW5FHYD3Q6ENKAU2IBLO2YFRWST4OGPDB4H32OGFMMJQF6SAJ5",
 		"CCH3CJZWG6UMW522ESP3UHL4DCZLNXZLUHKYG5GCGNG5HXRL4A6O4A23",
@@ -33,7 +34,7 @@ var (
 		"CBP7NO6F7FRDHSOFQBT2L2UWYIZ2PU76JKVRYAQTG3KZSQLYAOKIF2WB",
 		"CAO3AGAMZVRMHITL36EJ2VZQWKYRPWMQAPDQD5YEOF3GIF7T44U4JAL3",
 	}
-)
+)*/
 
 
 func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
@@ -48,7 +49,7 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 	lendingPools := make(map[string] dao.StellarLendingPool)
 	lendingActions := make(map[string] dao.StellarLendingAction)
 	for _, evt := range evts {
-		eventType := parseEventType(&evt)
+		eventType := parseEventType(&evt, deps)
 		if eventType.IsSoroswapPoolEvent {
 			data, err := parseSoroswapPool(&evt)
 			if err != nil {
@@ -56,7 +57,7 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 				continue
 			}
 			data.FactoryContractID = evt.ContractId
-			pools[data.TransactionHash] = data
+			pools[evt.Id] = data
 			//fmt.Println(data)
 		} else if eventType.IsPhoenixPoolEvent {
 			data, err := parsePhoenixPool(&evt)
@@ -92,7 +93,7 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 				deps.Logger.Error(fmt.Sprintf("parse SoroswapLiquidityActions error: %v", err))
 				continue
 			}
-			liquidityActions[data.TransactionHash] = data
+			liquidityActions[evt.Id] = data
 		} else if eventType.IsPhoenixLiquidityActionsEvent {
 			var data dao.StellarDexLiquidityAction
 			if _, ok := liquidityActions[evt.TransactionHash]; ok {
@@ -113,7 +114,7 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 				deps.Logger.Error(fmt.Sprintf("parse SoroswapSwap error: %v", err))
 				continue
 			}
-			swaps[data.TransactionHash] = data
+			swaps[evt.Id] = data
 		} else if eventType.IsPhoenixSwapEvent {
 			var data dao.StellarDexSwap
 			if _, ok := swaps[evt.TransactionHash]; ok {
@@ -133,14 +134,20 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 				deps.Logger.Error(fmt.Sprintf("parse BlendLendingPool error: %v", err))
 				continue
 			}
-			lendingPools[data.TransactionHash] = data
+			lendingPools[evt.Id] = data
 		} else if eventType.IsBlendLendingActionEvent {
-			data, err := parseBlendLendingAction(&evt)
+			var data dao.StellarLendingAction
+			if _, ok := lendingActions[evt.Id]; ok {
+				data = lendingActions[evt.Id]
+			} else {
+				data = parseLendingAction(&evt)
+			}
+			err := parseBlendLendingAction(&evt, &data)
 			if err != nil {
 				deps.Logger.Error(fmt.Sprintf("parse BlendLendingAction error: %v", err))
 				continue
 			}
-			lendingActions[data.TransactionHash] = data
+			lendingActions[evt.Id] = data
 		}
 	}
 	for _, pool := range pools {
@@ -149,6 +156,10 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 			if err != nil {
 				deps.Logger.Error(fmt.Sprintf("Stellar Dex failed to save pool: %v", err))
 				continue
+			} else {
+				if pool.FactoryContractID == PhoenixPoolsContract {
+					util.PhoenixPoolsCache.Set(pool.PoolContractID, 1)
+				}
 			}
 		}
 	}
@@ -165,7 +176,7 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 	for _, swap := range swaps {
 		if swap.PoolContractID != "" {
 			updateSwapTokenInfo(&swap, deps)
-			fmt.Println(swap)
+			//fmt.Println(swap)
 			err := deps.DestinationDB.Table(fmt.Sprintf("%s.%s", deps.DestinationDBSchema, swap.TableName())).Save(&swap).Error
 			if err != nil {
 				deps.Logger.Error(fmt.Sprintf("Stellar Dex failed to save swap: %v", err))
@@ -173,38 +184,77 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 			}
 		}
 	}
+	for _, lendingPool := range lendingPools {
+		if lendingPool.PoolContractID != "" {
+			err := deps.DestinationDB.Table(fmt.Sprintf("%s.%s", deps.DestinationDBSchema, lendingPool.TableName())).Save(&lendingPool).Error
+			if err != nil {
+				deps.Logger.Error(fmt.Sprintf("Stellar Dex failed to save lendingPool: %v", err))
+				continue
+			} else {
+				if lendingPool.FactoryContractID == BlendLendingPoolContract {
+					util.BlendLendingPoolsCache.Set(lendingPool.PoolContractID, 1)
+				}
+			}
+		}
+	}
+	for _, lendingAction := range lendingActions {
+		if lendingAction.PoolContractID != "" {
+			err := deps.DestinationDB.Table(fmt.Sprintf("%s.%s", deps.DestinationDBSchema, lendingAction.TableName())).Save(&lendingAction).Error
+			if err != nil {
+				deps.Logger.Error(fmt.Sprintf("Stellar Dex failed to save lendingAction: %v", err))
+				continue
+			}
+		}
+	}
 	return false, nil
 }
 
-func parseEventType(evt *dao.Event) *stellarEventType {
+func parseEventType(evt *dao.Event, deps *utils.Deps) *stellarEventType {
 	var et stellarEventType
-	if arrContains(BlendLendingActionContracts, evt.ContractId) {
-		if arrContains([]string{"supply", "withdraw", "borrow", "repay", "supply_collateral", "withdraw_collateral", "fill_auction"}, evt.Topic[0]) {
-			et.IsBlendLendingActionEvent = true
-		}
-	} else if len(evt.Topic) == 1 {
-		if evt.ContractId == BlendLendingPoolContract && evt.Topic[0] == "deploy" {
-			et.IsBlendLendingPoolEvent = true
-		}
-	} else if len(evt.Topic) == 2 {
-		if evt.Topic[0] == "SoroswapFactory" && evt.Topic[1] == "new_pair" && evt.ContractId == SoroswapPoolsContract{
-			et.IsSoroswapPoolEvent = true
-		} else if evt.ContractId == PhoenixPoolsContract && evt.Topic[0] == "create" && evt.Topic[1] == "liquidity_pool" {
-			et.IsPhoenixPoolEvent = true
-		} else if evt.Topic[0] == "SoroswapPair" && arrContains(SoroswapLiquidityActionContracts, evt.ContractId) && arrContains([]string{"deposit", "withdraw"}, evt.Topic[1]) {
-			et.IsSoroswapLiquidityActionsEvent = true
-		} else if evt.Topic[0] == "SoroswapPair" && evt.Topic[1] == "swap" {
-			et.IsSoroswapSwapEvent = true
-		} else if evt.ContractId == PhoenixActionContract {
-			if arrContains([]string{"provide_liquidity", "withdraw_liquidity"}, evt.Topic[0]) {
-				et.IsPhoenixLiquidityActionsEvent = true
-			} else if evt.Topic[0] == "swap" {
-				et.IsPhoenixSwapEvent = true
+	if len(evt.Topic) >= 1 {
+		if evt.Topic[0] == "fn_call" {
+			if len(evt.Topic) == 3 && evt.Topic[1] == PhoenixPoolsContract  && evt.Topic[2] == "create_liquidity_pool" {
+				et.IsPhoenixPoolDetailsEvent = true
+			} else if len(evt.Topic) == 3 && evt.ContractId == BlendLendingPoolContract && evt.Topic[2] == "initialize" {
+				et.IsBlendLendingPoolEvent = true
 			}
-		}
-	} else if len(evt.Topic) == 3 {
-		if evt.Topic[0] == "fn_call" && evt.Topic[1] == PhoenixPoolsContract  && evt.Topic[2] == "create_liquidity_pool" {
-			et.IsPhoenixPoolDetailsEvent = true
+		} else if evt.Topic[0] == "SoroswapFactory" {
+			if len(evt.Topic) == 2 && evt.Topic[1] == "new_pair" && evt.ContractId == SoroswapPoolsContract {
+				et.IsSoroswapPoolEvent = true
+			}
+		} else if evt.Topic[0] == "create" {
+			if len(evt.Topic) == 2 && evt.Topic[1] == "liquidity_pool" && evt.ContractId == PhoenixPoolsContract {
+				et.IsPhoenixPoolEvent = true
+			}
+		} else if evt.Topic[0] == "SoroswapPair" {
+			if len(evt.Topic) == 2 {
+				if evt.Topic[1] == "swap" {
+					et.IsSoroswapSwapEvent = true
+				} else if arrContains([]string{"deposit", "withdraw"}, evt.Topic[1]) {
+					et.IsSoroswapLiquidityActionsEvent = true
+				}
+			}
+		} else if evt.Topic[0] == "deploy" {
+			if len(evt.Topic) == 2 {
+				if evt.Topic[1] == "swap" {
+					et.IsSoroswapSwapEvent = true
+				} else if arrContains([]string{"deposit", "withdraw"}, evt.Topic[1]) {
+					et.IsSoroswapLiquidityActionsEvent = true
+				}
+			}
+		} else {
+			pt := checkPoolContract(evt.ContractId, deps)
+			if pt.IsPhoenixPool {
+				if arrContains([]string{"provide_liquidity", "withdraw_liquidity"}, evt.Topic[0]) {
+					et.IsPhoenixLiquidityActionsEvent = true
+				} else if evt.Topic[0] == "swap" {
+					et.IsPhoenixSwapEvent = true
+				}
+			} else if pt.IsBlendLendingPool {
+				if arrContains([]string{"supply", "withdraw", "borrow", "repay", "supply_collateral", "withdraw_collateral", "fill_auction"}, evt.Topic[0]) {
+					et.IsBlendLendingActionEvent = true
+				}
+			}
 		}
 	}
 	return &et
@@ -528,35 +578,87 @@ func parseSwap(evt *dao.Event) dao.StellarDexSwap {
 	return data
 }
 
-func parseBlendLendingAction(evt *dao.Event) (dao.StellarLendingAction, error) {
-	data := parseLendingAction(evt)
+func parseBlendLendingPool(evt *dao.Event) (dao.StellarLendingPool, error) {
+	data := parseLendingPool(evt)
 	var evtValue = extractAddressValues(evt.Value)
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return data, err
 	}else {
-		if evt.Topic[0] == "withdraw" {
-			var contract = extractAddressValues(evt.Topic[1])
-			rawDataContract, errContract := simplejson.NewJson([]byte(contract))
-			if errContract != nil {
-				return data, errContract
-			} else {
-				data.TokenType = rawDataContract.Get("Address").Get("type").MustString()
-				data.TokenAccount = rawDataContract.Get("Address").Get("address").MustString()
+		l := len(rawData.MustArray())
+		if l > 1 {
+			data.PoolName = rawData.GetIndex(1).MustString()
+		}
+		data.ParsedJSON = evtValue
+	}
+	return data, nil
+}
+func parseLendingPool(evt *dao.Event) dao.StellarLendingPool {
+	var data dao.StellarLendingPool
+	data = dao.StellarLendingPool{
+		EventID:			evt.Id,
+		PoolContractID:		evt.Topic[1],
+		PoolName:			"",
+		FactoryContractID:	evt.ContractId,
+		ParsedJSON:			"",
+		Ledger:				evt.Ledger,
+		LedgerClosedAt:		evt.LedgerClosedAt,
+		Topic:				evt.Topic,
+		Value:				evt.Value,
+		TransactionHash:	evt.TransactionHash,
+		ProcessTime:		time.Now(),
+		BlockDate:			evt.BlockDate,
+	}
+	return data
+}
+func parseBlendLendingAction(evt *dao.Event, data *dao.StellarLendingAction) error {
+	var evtValue = extractAddressValues(evt.Value)
+	rawData, err := simplejson.NewJson([]byte(evtValue))
+	if err != nil {
+		return err
+	}else {
+		var contract = extractAddressValues(evt.Topic[1])
+		rawDataContract, errContract := simplejson.NewJson([]byte(contract))
+		if errContract != nil {
+			return errContract
+		} else {
+			data.TokenType = rawDataContract.Get("Address").Get("type").MustString()
+			data.TokenAccount = rawDataContract.Get("Address").Get("address").MustString()
+		}
+		if evt.Topic[0] == "fill_auction" {
+			l := len(rawData.MustArray())
+			if l > 1 {
+				data.RequestAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(),10)
+				data.UserType = rawData.GetIndex(0).Get("Address").Get("type").MustString()
+				data.UserAccount = rawData.GetIndex(0).Get("Address").Get("address").MustString()
 			}
+		} else {
 			var account = extractAddressValues(evt.Topic[2])
 			rawDataAccount, errAccount := simplejson.NewJson([]byte(account))
 			if errAccount != nil {
-				return data, errAccount
+				return errAccount
 			} else {
 				data.UserType = rawDataAccount.Get("Address").Get("type").MustString()
 				data.UserAccount = rawDataAccount.Get("Address").Get("address").MustString()
 			}
 			l := len(rawData.MustArray())
-			if l > 0 {
-				data.RequestAmount = rawData.GetIndex(0)
+			if l > 1 {
+				data.RequestAmount = strconv.FormatInt(rawData.GetIndex(0).MustInt64(),10)
+				if arrContains([]string{"supply", "supply_collateral"}, evt.Topic[0]) {
+					data.BtokenAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(),10)
+				} else if arrContains([]string{"borrow", "repay"}, evt.Topic[0]) {
+					data.DtokenAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(),10)
+				}
 			}
-	return data, nil
+		}
+		jsonStr := `"` + evt.Topic[0] + `":` + evtValue
+		if data.ParsedJSON == "" {
+			data.ParsedJSON = "{" + jsonStr + "}"
+		} else {
+			data.ParsedJSON = data.ParsedJSON[:len(data.ParsedJSON)-1] + "," + jsonStr + "}"
+		}
+	}
+	return nil
 }
 func parseLendingAction(evt *dao.Event) dao.StellarLendingAction {
 	var data dao.StellarLendingAction
@@ -598,6 +700,71 @@ type stellarEventType struct {
 	IsBlendLendingPoolEvent			bool
 	IsBlendLendingActionEvent		bool
 }
+type poolType struct {
+	IsPhoenixPool				bool
+	IsBlendLendingPool			bool
+}
+
+
+func initPoolContractCache(deps *utils.Deps) {
+	if util.LoadedDb == false {
+		util.LoadedDb = true
+		var phoenixPools []dao.StellarDexPool
+		var phoenixPool dao.StellarDexPool
+		deps.DestinationDB.Table(phoenixPool.TableName()).Where("factory_contract_id = ?", PhoenixPoolsContract).Limit(util.CacheCapacity).Scan(&phoenixPools)
+		if len(phoenixPools) > 0 {
+			for _, pp := range phoenixPools {
+				util.PhoenixPoolsCache.Set(pp.PoolContractID, 1)
+			}
+		}
+
+		var lendingPools []dao.StellarLendingPool
+		var lendingPool dao.StellarLendingPool
+		deps.DestinationDB.Table(lendingPool.TableName()).Where("factory_contract_id = ?", BlendLendingPoolContract).Limit(util.CacheCapacity).Scan(&lendingPools)
+		if len(lendingPools) > 0 {
+			for _, pp2 := range lendingPools {
+				util.BlendLendingPoolsCache.Set(pp2.PoolContractID, 1)
+			}
+		}
+	}
+}
+func checkPoolContract(contract string, deps *utils.Deps) *poolType {
+	initPoolContractCache(deps)
+	var pt poolType
+	_, ok := util.PhoenixPoolsCache.Get(contract)
+	if ok {
+		pt.IsPhoenixPool = true
+		return &pt
+	}
+	_, ok = util.BlendLendingPoolsCache.Get(contract)
+	if ok {
+		pt.IsBlendLendingPool = true
+		return &pt
+	}
+	var pools []dao.StellarDexPool
+	var p dao.StellarDexPool
+	deps.DestinationDB.Table(p.TableName()).Where("pool_contract_id = ?", contract).Limit(1).Scan(&pools)
+	if len(pools) > 0 {
+		if pools[0].FactoryContractID == PhoenixPoolsContract{
+			pt.IsPhoenixPool = true
+			util.PhoenixPoolsCache.Set(contract, 1)
+			return &pt
+		}
+	}
+
+	var poolsLending []dao.StellarLendingPool
+	var pLending dao.StellarLendingPool
+	deps.DestinationDB.Table(pLending.TableName()).Where("pool_contract_id = ?", contract).Limit(1).Scan(&poolsLending)
+	if len(poolsLending) > 0 {
+		if poolsLending[0].FactoryContractID == BlendLendingPoolContract{
+			pt.IsBlendLendingPool = true
+			util.BlendLendingPoolsCache.Set(contract, 1)
+			return &pt
+		}
+	}
+	return &pt
+}
+
 func arrContains(arr []string, s string) bool {
 	for _, element := range arr {
 		if element == s {
