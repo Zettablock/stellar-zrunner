@@ -58,7 +58,6 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 			}
 			data.FactoryContractID = evt.ContractId
 			pools[evt.Id] = data
-			//fmt.Println(data)
 		} else if eventType.IsPhoenixPoolEvent {
 			data, err := parsePhoenixPool(&evt)
 			if err != nil {
@@ -73,7 +72,6 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 				data.FactoryContractID = evt.ContractId
 				pools[data.TransactionHash] = data
 			}
-			//fmt.Println(pools[data.TransactionHash])
 		} else if eventType.IsPhoenixPoolDetailsEvent {
 			data, err := parsePhoenixPoolDetails(&evt)
 			if err != nil {

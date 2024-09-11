@@ -2,4 +2,4 @@
 
 ## Some explanations:
 
-Handle `dex` for Stellar chain Soroban events.
+Handle `dex`, `lending` for Stellar chain Soroban events.
