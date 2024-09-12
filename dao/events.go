@@ -10,22 +10,22 @@ import (
 
 // Event mapped from table <events>
 type Event struct {
-	Id				string			`gorm:"column:id;primaryKey" json:"id"`
-	Type			string			`gorm:"column:type;not null" json:"type"`
-	ContractId		string			`gorm:"column:contract_id;not null" json:"contract_id"`
-	LedgerClosedAt	time.Time		`gorm:"column:ledger_closed_at;type:timestamp" json:"ledger_closed_at"`
-	Ledger			int64			`gorm:"column:ledger" json:"ledger"`
-	Topic			pq.StringArray	`gorm:"column:topic;type:text[]" json:"topic"`
-	Value			string			`gorm:"column:value" json:"value"`
-	TransactionHash	string			`gorm:"column:transaction_hash" json:"transaction_hash"`
-	ProcessTime		time.Time		`gorm:"column:process_time;type:timestamp" json:"process_time"`
-	BlockDate		time.Time		`gorm:"column:block_date;type:timestamp" json:"block_date"`
+	Id              string         `gorm:"column:id;primaryKey" json:"id"`
+	Type            string         `gorm:"column:type;not null" json:"type"`
+	ContractId      string         `gorm:"column:contract_id;not null" json:"contract_id"`
+	LedgerClosedAt  time.Time      `gorm:"column:ledger_closed_at;type:timestamp" json:"ledger_closed_at"`
+	Ledger          int64          `gorm:"column:ledger" json:"ledger"`
+	Topic           pq.StringArray `gorm:"column:topic;type:text[]" json:"topic"`
+	Value           string         `gorm:"column:value" json:"value"`
+	TransactionHash string         `gorm:"column:transaction_hash" json:"transaction_hash"`
+	ProcessTime     time.Time      `gorm:"column:process_time;type:timestamp" json:"process_time"`
+	BlockDate       time.Time      `gorm:"column:block_date;type:timestamp" json:"block_date"`
 }
 
 type EventDao struct {
-	sourceDB  *gorm.DB
-	m         *Event
-	schema    string
+	sourceDB *gorm.DB
+	m        *Event
+	schema   string
 }
 
 func NewEventDao(schema string, dbs ...*gorm.DB) *EventDao {
