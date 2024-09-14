@@ -1,26 +1,27 @@
 package main
 
 import (
-	"time"
 	"fmt"
-	"strings"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
-	"github.com/Zettablock/zsource/utils"
-    "github.com/Zettablock/stellar-zrunner/dao"
-	"github.com/bitly/go-simplejson"
+	"github.com/Zettablock/stellar-zrunner/dao"
 	"github.com/Zettablock/stellar-zrunner/util"
+	"github.com/Zettablock/zsource/utils"
+	"github.com/bitly/go-simplejson"
 )
 
 const (
 	SoroswapPoolsContract = "CA4HEQTL2WPEUYKYKCDOHCDNIV4QHNJ7EL4J4NQ6VADP7SYHVRYZ7AW2"
-	PhoenixPoolsContract = "CB4SVAWJA6TSRNOJZ7W2AWFW46D5VR4ZMFZKDIKXEINZCZEGZCJZCKMI"
+	PhoenixPoolsContract  = "CB4SVAWJA6TSRNOJZ7W2AWFW46D5VR4ZMFZKDIKXEINZCZEGZCJZCKMI"
 	//PhoenixActionContract = "CBISULYO5ZGS32WTNCBMEFCNKNSLFXCQ4Z3XHVDP4X4FLPSEALGSY3PS"
 	BlendLendingPoolContract = "CCZD6ESMOGMPWH2KRO4O7RGTAPGTUPFWFQBELQSS7ZUK63V3TZWETGAG"
 	XycLoansLendingPoolContract = "CAJ6URRGHPE454MJBCRDFUHPRYPXRL3NLAHDDKYE53ERIENZF2JR43TE"
 	 
 )
+
 /*var (
 	SoroswapLiquidityActionContracts = []string{
 		"CACTIOUW5FHYD3Q6ENKAU2IBLO2YFRWST4OGPDB4H32OGFMMJQF6SAJ5",
@@ -37,18 +38,17 @@ const (
 	}
 )*/
 
-
 func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 	//deps.Logger.Info("Sui Dex BlockHandler", "block number", blockNumber)
 
 	var eventDao = dao.NewEventDao(deps.Config.Source.Schema, deps.SourceDB)
 	var evts []dao.Event = eventDao.List(blockNumber)
 
-	pools := make(map[string] dao.StellarDexPool)
-	liquidityActions := make(map[string] dao.StellarDexLiquidityAction)
-	swaps := make(map[string] dao.StellarDexSwap)
-	lendingPools := make(map[string] dao.StellarLendingPool)
-	lendingActions := make(map[string] dao.StellarLendingAction)
+	pools := make(map[string]dao.StellarDexPool)
+	liquidityActions := make(map[string]dao.StellarDexLiquidityAction)
+	swaps := make(map[string]dao.StellarDexSwap)
+	lendingPools := make(map[string]dao.StellarLendingPool)
+	lendingActions := make(map[string]dao.StellarLendingAction)
 	for _, evt := range evts {
 		eventType := parseEventType(&evt, deps)
 		if eventType.IsSoroswapPoolEvent {
@@ -234,7 +234,7 @@ func parseEventType(evt *dao.Event, deps *utils.Deps) *stellarEventType {
 	var et stellarEventType
 	if len(evt.Topic) >= 1 {
 		if evt.Topic[0] == "fn_call" {
-			if len(evt.Topic) == 3 && evt.Topic[1] == PhoenixPoolsContract  && evt.Topic[2] == "create_liquidity_pool" {
+			if len(evt.Topic) == 3 && evt.Topic[1] == PhoenixPoolsContract && evt.Topic[2] == "create_liquidity_pool" {
 				et.IsPhoenixPoolDetailsEvent = true
 			} else if len(evt.Topic) == 3 && evt.ContractId == BlendLendingPoolContract && evt.Topic[2] == "initialize" {
 				et.IsBlendLendingPoolEvent = true
@@ -336,7 +336,7 @@ func parseSoroswapPool(evt *dao.Event) (dao.StellarDexPool, error) {
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return data, err
-	}else {
+	} else {
 		data.PoolContractID = rawData.Get("pair").Get("Address").Get("address").MustString()
 		data.TokenAType = rawData.Get("token_0").Get("Address").Get("type").MustString()
 		data.TokenAAccount = rawData.Get("token_0").Get("Address").Get("address").MustString()
@@ -352,7 +352,7 @@ func parsePhoenixPool(evt *dao.Event) (dao.StellarDexPool, error) {
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return data, err
-	}else {
+	} else {
 		data.PoolContractID = rawData.Get("Address").Get("address").MustString()
 		data.ParsedJSON = evtValue
 		data.EventID = evt.Id
@@ -385,21 +385,21 @@ func parsePhoenixPoolDetails(evt *dao.Event) (dao.StellarDexPool, error) {
 func parsePool(evt *dao.Event) dao.StellarDexPool {
 	var data dao.StellarDexPool
 	data = dao.StellarDexPool{
-		PoolContractID:		"",
-		TokenAType:			"",
-		TokenAAccount:		"",
-		TokenBType:			"",
-		TokenBAccount:		"",
-		FactoryContractID:	"",
-		ParsedJSON:			"",
-		EventID:			evt.Id,
-		Ledger:				evt.Ledger,
-		LedgerClosedAt:		evt.LedgerClosedAt,
-		Topic:				evt.Topic,
-		Value:				evt.Value,
-		TransactionHash:	evt.TransactionHash,
-		ProcessTime:		time.Now(),
-		BlockDate:			evt.BlockDate,
+		PoolContractID:    "",
+		TokenAType:        "",
+		TokenAAccount:     "",
+		TokenBType:        "",
+		TokenBAccount:     "",
+		FactoryContractID: "",
+		ParsedJSON:        "",
+		EventID:           evt.Id,
+		Ledger:            evt.Ledger,
+		LedgerClosedAt:    evt.LedgerClosedAt,
+		Topic:             evt.Topic,
+		Value:             evt.Value,
+		TransactionHash:   evt.TransactionHash,
+		ProcessTime:       time.Now(),
+		BlockDate:         evt.BlockDate,
 	}
 	return data
 }
@@ -436,15 +436,15 @@ func parseSoroswapLiquidityAction(evt *dao.Event) (dao.StellarDexLiquidityAction
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return data, err
-	}else {
+	} else {
 		data.ActionType = evt.Topic[1]
 		data.UserType = rawData.Get("to").Get("Address").Get("type").MustString()
 		data.UserAccount = rawData.Get("to").Get("Address").Get("address").MustString()
-		data.Amount0 = strconv.FormatInt(rawData.Get("amount_0").MustInt64(),10)
-		data.Amount1 = strconv.FormatInt(rawData.Get("amount_1").MustInt64(),10)
-		data.Liquidity = strconv.FormatInt(rawData.Get("liquidity").MustInt64(),10)
-		data.NewReserve0 = strconv.FormatInt(rawData.Get("new_reserve_0").MustInt64(),10)
-		data.NewReserve1 = strconv.FormatInt(rawData.Get("new_reserve_1").MustInt64(),10)
+		data.Amount0 = strconv.FormatInt(rawData.Get("amount_0").MustInt64(), 10)
+		data.Amount1 = strconv.FormatInt(rawData.Get("amount_1").MustInt64(), 10)
+		data.Liquidity = strconv.FormatInt(rawData.Get("liquidity").MustInt64(), 10)
+		data.NewReserve0 = strconv.FormatInt(rawData.Get("new_reserve_0").MustInt64(), 10)
+		data.NewReserve1 = strconv.FormatInt(rawData.Get("new_reserve_1").MustInt64(), 10)
 		data.ParsedJSON = evtValue
 	}
 	return data, nil
@@ -495,28 +495,28 @@ func parsesPhoenixLiquidityAction(evt *dao.Event, data *dao.StellarDexLiquidityA
 func parseLiquidityAction(evt *dao.Event) dao.StellarDexLiquidityAction {
 	var data dao.StellarDexLiquidityAction
 	data = dao.StellarDexLiquidityAction{
-		EventID:			evt.Id,
-		PoolContractID:		evt.ContractId,
-		UserType:			"",
-		UserAccount:		"",
-		ActionType:			"",
-		TokenAType:			"",
-		TokenAAccount:		"",
-		TokenBType:			"",
-		TokenBAccount:		"",
-		Amount0:			"",
-		Amount1:			"",
-		Liquidity:			"",
-		NewReserve0:		"",
-		NewReserve1:		"",
-		ParsedJSON:			"",
-		Ledger:				evt.Ledger,
-		LedgerClosedAt:		evt.LedgerClosedAt,
-		Topic:				evt.Topic,
-		Value:				evt.Value,
-		TransactionHash:	evt.TransactionHash,
-		ProcessTime:		time.Now(),
-		BlockDate:			evt.BlockDate,
+		EventID:         evt.Id,
+		PoolContractID:  evt.ContractId,
+		UserType:        "",
+		UserAccount:     "",
+		ActionType:      "",
+		TokenAType:      "",
+		TokenAAccount:   "",
+		TokenBType:      "",
+		TokenBAccount:   "",
+		Amount0:         "",
+		Amount1:         "",
+		Liquidity:       "",
+		NewReserve0:     "",
+		NewReserve1:     "",
+		ParsedJSON:      "",
+		Ledger:          evt.Ledger,
+		LedgerClosedAt:  evt.LedgerClosedAt,
+		Topic:           evt.Topic,
+		Value:           evt.Value,
+		TransactionHash: evt.TransactionHash,
+		ProcessTime:     time.Now(),
+		BlockDate:       evt.BlockDate,
 	}
 	return data
 }
@@ -526,13 +526,13 @@ func parseSoroswapSwap(evt *dao.Event) (dao.StellarDexSwap, error) {
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return data, err
-	}else {
+	} else {
 		data.UserType = rawData.Get("to").Get("Address").Get("type").MustString()
 		data.UserAccount = rawData.Get("to").Get("Address").Get("address").MustString()
-		data.Amount0In = strconv.FormatInt(rawData.Get("amount_0_in").MustInt64(),10)
-		data.Amount0Out = strconv.FormatInt(rawData.Get("amount_0_out").MustInt64(),10)
-		data.Amount1In = strconv.FormatInt(rawData.Get("amount_1_in").MustInt64(),10)
-		data.Amount1Out = strconv.FormatInt(rawData.Get("amount_1_out").MustInt64(),10)
+		data.Amount0In = strconv.FormatInt(rawData.Get("amount_0_in").MustInt64(), 10)
+		data.Amount0Out = strconv.FormatInt(rawData.Get("amount_0_out").MustInt64(), 10)
+		data.Amount1In = strconv.FormatInt(rawData.Get("amount_1_in").MustInt64(), 10)
+		data.Amount1Out = strconv.FormatInt(rawData.Get("amount_1_out").MustInt64(), 10)
 		data.ParsedJSON = evtValue
 	}
 	return data, nil
@@ -583,28 +583,28 @@ func parsesPhoenixSwap(evt *dao.Event, data *dao.StellarDexSwap) error {
 func parseSwap(evt *dao.Event) dao.StellarDexSwap {
 	var data dao.StellarDexSwap
 	data = dao.StellarDexSwap{
-		EventID:			evt.Id,
-		PoolContractID:		evt.ContractId,
-		UserType:			"",
-		UserAccount:		"",
-		TokenAType:			"",
-		TokenAAccount:		"",
-		TokenBType:			"",
-		TokenBAccount:		"",
-		Amount0In:			"0",
-		Amount1In:			"0",
-		Amount0Out:			"0",
-		Amount1Out:			"0",
-		SpreadAmount:		0,
-		ReferralFeeAmount:	0,
-		ParsedJSON:			"",
-		Ledger:				evt.Ledger,
-		LedgerClosedAt:		evt.LedgerClosedAt,
-		Topic:				evt.Topic,
-		Value:				evt.Value,
-		TransactionHash:	evt.TransactionHash,
-		ProcessTime:		time.Now(),
-		BlockDate:			evt.BlockDate,
+		EventID:           evt.Id,
+		PoolContractID:    evt.ContractId,
+		UserType:          "",
+		UserAccount:       "",
+		TokenAType:        "",
+		TokenAAccount:     "",
+		TokenBType:        "",
+		TokenBAccount:     "",
+		Amount0In:         "0",
+		Amount1In:         "0",
+		Amount0Out:        "0",
+		Amount1Out:        "0",
+		SpreadAmount:      0,
+		ReferralFeeAmount: 0,
+		ParsedJSON:        "",
+		Ledger:            evt.Ledger,
+		LedgerClosedAt:    evt.LedgerClosedAt,
+		Topic:             evt.Topic,
+		Value:             evt.Value,
+		TransactionHash:   evt.TransactionHash,
+		ProcessTime:       time.Now(),
+		BlockDate:         evt.BlockDate,
 	}
 	return data
 }
@@ -631,7 +631,7 @@ func parseBlendLendingPool(evt *dao.Event) (dao.StellarLendingPool, error) {
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return data, err
-	}else {
+	} else {
 		l := len(rawData.MustArray())
 		if l > 1 {
 			data.PoolName = rawData.GetIndex(1).MustString()
@@ -663,7 +663,7 @@ func parseBlendLendingAction(evt *dao.Event, data *dao.StellarLendingAction) err
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
 		return err
-	}else {
+	} else {
 		var contract = extractAddressValues(evt.Topic[1])
 		rawDataContract, errContract := simplejson.NewJson([]byte(contract))
 		if errContract != nil {
@@ -675,7 +675,7 @@ func parseBlendLendingAction(evt *dao.Event, data *dao.StellarLendingAction) err
 		if evt.Topic[0] == "fill_auction" {
 			l := len(rawData.MustArray())
 			if l > 1 {
-				data.RequestAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(),10)
+				data.RequestAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(), 10)
 				data.UserType = rawData.GetIndex(0).Get("Address").Get("type").MustString()
 				data.UserAccount = rawData.GetIndex(0).Get("Address").Get("address").MustString()
 			}
@@ -690,11 +690,11 @@ func parseBlendLendingAction(evt *dao.Event, data *dao.StellarLendingAction) err
 			}
 			l := len(rawData.MustArray())
 			if l > 1 {
-				data.RequestAmount = strconv.FormatInt(rawData.GetIndex(0).MustInt64(),10)
+				data.RequestAmount = strconv.FormatInt(rawData.GetIndex(0).MustInt64(), 10)
 				if arrContains([]string{"supply", "supply_collateral"}, evt.Topic[0]) {
-					data.BtokenAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(),10)
+					data.BtokenAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(), 10)
 				} else if arrContains([]string{"borrow", "repay"}, evt.Topic[0]) {
-					data.DtokenAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(),10)
+					data.DtokenAmount = strconv.FormatInt(rawData.GetIndex(1).MustInt64(), 10)
 				}
 			}
 		}
@@ -725,28 +725,28 @@ func parseXycLoansLendingAction(evt *dao.Event, data *dao.StellarLendingAction) 
 func parseLendingAction(evt *dao.Event) dao.StellarLendingAction {
 	var data dao.StellarLendingAction
 	data = dao.StellarLendingAction{
-		EventID:			evt.Id,
-		PoolContractID:		evt.ContractId,
-		UserType:			"",
-		UserAccount:		"",
-		ActionType:			evt.Topic[0],
-		TokenType:			"",
-		TokenAccount:		"",
-		RequestAmount:		"",
-		BtokenAmount:		"",
-		BtokenType:			"",
-		BtokenAccount:		"",
-		DtokenAmount:		"",
-		DtokenType:			"",
-		DtokenAccount:		"",
-		ParsedJSON:			"",
-		Ledger:				evt.Ledger,
-		LedgerClosedAt:		evt.LedgerClosedAt,
-		Topic:				evt.Topic,
-		Value:				evt.Value,
-		TransactionHash:	evt.TransactionHash,
-		ProcessTime:		time.Now(),
-		BlockDate:			evt.BlockDate,
+		EventID:         evt.Id,
+		PoolContractID:  evt.ContractId,
+		UserType:        "",
+		UserAccount:     "",
+		ActionType:      evt.Topic[0],
+		TokenType:       "",
+		TokenAccount:    "",
+		RequestAmount:   "",
+		BtokenAmount:    "",
+		BtokenType:      "",
+		BtokenAccount:   "",
+		DtokenAmount:    "",
+		DtokenType:      "",
+		DtokenAccount:   "",
+		ParsedJSON:      "",
+		Ledger:          evt.Ledger,
+		LedgerClosedAt:  evt.LedgerClosedAt,
+		Topic:           evt.Topic,
+		Value:           evt.Value,
+		TransactionHash: evt.TransactionHash,
+		ProcessTime:     time.Now(),
+		BlockDate:       evt.BlockDate,
 	}
 	return data
 }
@@ -769,7 +769,6 @@ type poolType struct {
 	IsBlendLendingPool			bool
 	IsXycLoansLendingPool		bool
 }
-
 
 func initPoolContractCache(deps *utils.Deps) {
 	if util.LoadedDb == false {
@@ -822,7 +821,7 @@ func checkPoolContract(contract string, deps *utils.Deps) *poolType {
 	var p dao.StellarDexPool
 	deps.DestinationDB.Table(p.TableName()).Where("pool_contract_id = ?", contract).Limit(1).Scan(&pools)
 	if len(pools) > 0 {
-		if pools[0].FactoryContractID == PhoenixPoolsContract{
+		if pools[0].FactoryContractID == PhoenixPoolsContract {
 			pt.IsPhoenixPool = true
 			util.PhoenixPoolsCache.Set(contract, 1)
 			return &pt
@@ -833,7 +832,7 @@ func checkPoolContract(contract string, deps *utils.Deps) *poolType {
 	var pLending dao.StellarLendingPool
 	deps.DestinationDB.Table(pLending.TableName()).Where("pool_contract_id = ?", contract).Limit(1).Scan(&poolsLending)
 	if len(poolsLending) > 0 {
-		if poolsLending[0].FactoryContractID == BlendLendingPoolContract{
+		if poolsLending[0].FactoryContractID == BlendLendingPoolContract {
 			pt.IsBlendLendingPool = true
 			util.BlendLendingPoolsCache.Set(contract, 1)
 			return &pt

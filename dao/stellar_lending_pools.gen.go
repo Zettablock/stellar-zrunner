@@ -5,26 +5,26 @@
 package dao
 
 import (
-	"time"
 	"github.com/lib/pq"
+	"time"
 )
 
 const TableNameStellarLendingPool = "stellar_lending_pools"
 
 // StellarLendingPool mapped from table <stellar_lending_pools>
 type StellarLendingPool struct {
-	PoolContractID    string    `gorm:"column:pool_contract_id;primaryKey" json:"pool_contract_id"`
-	PoolName          string    `gorm:"column:pool_name" json:"pool_name"`
-	FactoryContractID string    `gorm:"column:factory_contract_id" json:"factory_contract_id"`
-	ParsedJSON        string    `gorm:"column:parsed_json;type:jsonb" json:"parsed_json"`
-	EventID           string    `gorm:"column:event_id;not null" json:"event_id"`
-	Ledger            int64     `gorm:"column:ledger" json:"ledger"`
-	LedgerClosedAt    time.Time `gorm:"column:ledger_closed_at" json:"ledger_closed_at"`
-	Topic             pq.StringArray    `gorm:"column:topic;type:text[]" json:"topic"`
-	Value             string    `gorm:"column:value" json:"value"`
-	TransactionHash   string    `gorm:"column:transaction_hash" json:"transaction_hash"`
-	ProcessTime       time.Time `gorm:"column:process_time" json:"process_time"`
-	BlockDate         time.Time `gorm:"column:block_date" json:"block_date"`
+	PoolContractID    string         `gorm:"column:pool_contract_id;primaryKey" json:"pool_contract_id"`
+	PoolName          string         `gorm:"column:pool_name" json:"pool_name"`
+	FactoryContractID string         `gorm:"column:factory_contract_id" json:"factory_contract_id"`
+	ParsedJSON        string         `gorm:"column:parsed_json;type:jsonb" json:"parsed_json"`
+	EventID           string         `gorm:"column:event_id;not null" json:"event_id"`
+	Ledger            int64          `gorm:"column:ledger" json:"ledger"`
+	LedgerClosedAt    time.Time      `gorm:"column:ledger_closed_at" json:"ledger_closed_at"`
+	Topic             pq.StringArray `gorm:"column:topic;type:text[]" json:"topic"`
+	Value             string         `gorm:"column:value" json:"value"`
+	TransactionHash   string         `gorm:"column:transaction_hash" json:"transaction_hash"`
+	ProcessTime       time.Time      `gorm:"column:process_time" json:"process_time"`
+	BlockDate         time.Time      `gorm:"column:block_date" json:"block_date"`
 }
 
 // TableName StellarLendingPool's table name
