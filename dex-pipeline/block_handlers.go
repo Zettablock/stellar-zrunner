@@ -18,6 +18,7 @@ const (
 	PhoenixPoolsContract = "CB4SVAWJA6TSRNOJZ7W2AWFW46D5VR4ZMFZKDIKXEINZCZEGZCJZCKMI"
 	//PhoenixActionContract = "CBISULYO5ZGS32WTNCBMEFCNKNSLFXCQ4Z3XHVDP4X4FLPSEALGSY3PS"
 	BlendLendingPoolContract = "CCZD6ESMOGMPWH2KRO4O7RGTAPGTUPFWFQBELQSS7ZUK63V3TZWETGAG"
+	XycLoansLendingPoolContract = "CAJ6URRGHPE454MJBCRDFUHPRYPXRL3NLAHDDKYE53ERIENZF2JR43TE"
 	 
 )
 /*var (
@@ -126,6 +127,13 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 				continue
 			}
 			swaps[data.TransactionHash] = data
+		} else if eventType.IsXycLoansLendingPoolEvent {
+			data, err := parseXycLoansLendingPool(&evt)
+			if err != nil {
+				deps.Logger.Error(fmt.Sprintf("parse parseXycLoansLendingPool error: %v", err))
+				continue
+			}
+			lendingPools[evt.Id] = data
 		} else if eventType.IsBlendLendingPoolEvent {
 			data, err := parseBlendLendingPool(&evt)
 			if err != nil {
@@ -143,6 +151,19 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 			err := parseBlendLendingAction(&evt, &data)
 			if err != nil {
 				deps.Logger.Error(fmt.Sprintf("parse BlendLendingAction error: %v", err))
+				continue
+			}
+			lendingActions[evt.Id] = data
+		} else if eventType.IsXycLoansLendingActionEvent {
+			var data dao.StellarLendingAction
+			if _, ok := lendingActions[evt.Id]; ok {
+				data = lendingActions[evt.Id]
+			} else {
+				data = parseLendingAction(&evt)
+			}
+			err := parseXycLoansLendingAction(&evt, &data)
+			if err != nil {
+				deps.Logger.Error(fmt.Sprintf("parse XycLoansLendingAction error: %v", err))
 				continue
 			}
 			lendingActions[evt.Id] = data
@@ -191,6 +212,8 @@ func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 			} else {
 				if lendingPool.FactoryContractID == BlendLendingPoolContract {
 					util.BlendLendingPoolsCache.Set(lendingPool.PoolContractID, 1)
+				} else if lendingPool.FactoryContractID == XycLoansLendingPoolContract {
+					util.XycLoansLendingPoolsCache.Set(lendingPool.PoolContractID, 1)
 				}
 			}
 		}
@@ -240,6 +263,12 @@ func parseEventType(evt *dao.Event, deps *utils.Deps) *stellarEventType {
 					et.IsSoroswapLiquidityActionsEvent = true
 				}
 			}
+		} else if evt.Topic[0] == "deployed" {
+			if len(evt.Topic) == 1 {
+				if evt.ContractId == XycLoansLendingPoolContract {
+					et.IsXycLoansLendingPoolEvent = true
+				}
+			}
 		} else {
 			pt := checkPoolContract(evt.ContractId, deps)
 			if pt.IsPhoenixPool {
@@ -251,6 +280,10 @@ func parseEventType(evt *dao.Event, deps *utils.Deps) *stellarEventType {
 			} else if pt.IsBlendLendingPool {
 				if arrContains([]string{"supply", "withdraw", "borrow", "repay", "supply_collateral", "withdraw_collateral", "fill_auction"}, evt.Topic[0]) {
 					et.IsBlendLendingActionEvent = true
+				}
+			} else if pt.IsXycLoansLendingPool {
+				if arrContains([]string{"deposit", "newfee", "withdrawn"}, evt.Topic[0]) {
+					et.IsXycLoansLendingActionEvent = true
 				}
 			}
 		}
@@ -576,8 +609,24 @@ func parseSwap(evt *dao.Event) dao.StellarDexSwap {
 	return data
 }
 
+func parseXycLoansLendingPool(evt *dao.Event) (dao.StellarLendingPool, error) {
+	data := parseLendingPool(evt)
+	var evtValue = extractAddressValues(evt.Value)
+	rawData, err := simplejson.NewJson([]byte(evtValue))
+	if err != nil {
+		return data, err
+	}else {
+		data.FactoryContractID = XycLoansLendingPoolContract
+		data.PoolContractID = rawData.Get("Address").Get("address").MustString()
+		data.ParsedJSON = evtValue
+		data.PoolName = "Pool_" + data.PoolContractID[len(data.PoolContractID)-8:]
+	}
+	return data, nil
+}
 func parseBlendLendingPool(evt *dao.Event) (dao.StellarLendingPool, error) {
 	data := parseLendingPool(evt)
+	data.FactoryContractID = evt.ContractId
+	data.PoolContractID = evt.Topic[1]
 	var evtValue = extractAddressValues(evt.Value)
 	rawData, err := simplejson.NewJson([]byte(evtValue))
 	if err != nil {
@@ -595,9 +644,9 @@ func parseLendingPool(evt *dao.Event) dao.StellarLendingPool {
 	var data dao.StellarLendingPool
 	data = dao.StellarLendingPool{
 		EventID:			evt.Id,
-		PoolContractID:		evt.Topic[1],
+		PoolContractID:		"",
 		PoolName:			"",
-		FactoryContractID:	evt.ContractId,
+		FactoryContractID:	"",
 		ParsedJSON:			"",
 		Ledger:				evt.Ledger,
 		LedgerClosedAt:		evt.LedgerClosedAt,
@@ -658,6 +707,21 @@ func parseBlendLendingAction(evt *dao.Event, data *dao.StellarLendingAction) err
 	}
 	return nil
 }
+func parseXycLoansLendingAction(evt *dao.Event, data *dao.StellarLendingAction) error {
+	if arrContains([]string{"deposit", "newfee", "withdrawn"}, evt.Topic[0]) {
+		var address = extractAddressValues(evt.Topic[1])
+		rawData, err := simplejson.NewJson([]byte(address))
+		if err != nil {
+			return err
+		}else {
+			data.TokenType = rawData.Get("Address").Get("type").MustString()
+			data.TokenAccount = rawData.Get("Address").Get("address").MustString()
+			data.RequestAmount = evt.Value
+			data.ParsedJSON = evt.Value
+		}
+	}
+	return nil
+}
 func parseLendingAction(evt *dao.Event) dao.StellarLendingAction {
 	var data dao.StellarLendingAction
 	data = dao.StellarLendingAction{
@@ -697,10 +761,13 @@ type stellarEventType struct {
 	IsPhoenixSwapEvent				bool
 	IsBlendLendingPoolEvent			bool
 	IsBlendLendingActionEvent		bool
+	IsXycLoansLendingPoolEvent		bool
+	IsXycLoansLendingActionEvent	bool
 }
 type poolType struct {
 	IsPhoenixPool				bool
 	IsBlendLendingPool			bool
+	IsXycLoansLendingPool		bool
 }
 
 
@@ -724,6 +791,13 @@ func initPoolContractCache(deps *utils.Deps) {
 				util.BlendLendingPoolsCache.Set(pp2.PoolContractID, 1)
 			}
 		}
+		var xycLoansLendingPools []dao.StellarLendingPool
+		deps.DestinationDB.Table(lendingPool.TableName()).Where("factory_contract_id = ?", XycLoansLendingPoolContract).Limit(util.CacheCapacity).Scan(&xycLoansLendingPools)
+		if len(xycLoansLendingPools) > 0 {
+			for _, pp3 := range xycLoansLendingPools {
+				util.XycLoansLendingPoolsCache.Set(pp3.PoolContractID, 1)
+			}
+		}
 	}
 }
 func checkPoolContract(contract string, deps *utils.Deps) *poolType {
@@ -737,6 +811,11 @@ func checkPoolContract(contract string, deps *utils.Deps) *poolType {
 	_, ok = util.BlendLendingPoolsCache.Get(contract)
 	if ok {
 		pt.IsBlendLendingPool = true
+		return &pt
+	}
+	_, ok = util.XycLoansLendingPoolsCache.Get(contract)
+	if ok {
+		pt.IsXycLoansLendingPool = true
 		return &pt
 	}
 	var pools []dao.StellarDexPool
@@ -757,6 +836,10 @@ func checkPoolContract(contract string, deps *utils.Deps) *poolType {
 		if poolsLending[0].FactoryContractID == BlendLendingPoolContract{
 			pt.IsBlendLendingPool = true
 			util.BlendLendingPoolsCache.Set(contract, 1)
+			return &pt
+		} else if poolsLending[0].FactoryContractID == XycLoansLendingPoolContract{
+			pt.IsXycLoansLendingPool = true
+			util.XycLoansLendingPoolsCache.Set(contract, 1)
 			return &pt
 		}
 	}
