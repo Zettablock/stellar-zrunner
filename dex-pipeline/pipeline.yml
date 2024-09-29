@@ -1,13 +1,13 @@
 name: dex-pipeline  # required, no space or special chars allowed, must be consistent with the pipeline folder name
 source:
-  startBlock: 51748939
+  startBlock: 53710592
   schema: "stellar_mainnet"
-  sourceDB: PG_NONEVM_PROD
+  sourceDB: PG_EVM_PROD
 destination:
-  destinationDB: PG_NONEVM_PROD
+  destinationDB: PG_EVM_PROD
   schema: "defi"
 metadata:
-  metadataDB: PG_NONEVM_PROD
+  metadataDB: PG_EVM_PROD
   schema: "stellar_zrunner_metadata"
 blockHandlers:
   - handler: HandleBlock
