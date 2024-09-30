@@ -1,5 +1,5 @@
 specVersion: 0.0.1 # not used for now
-org: zetta_stellar_defi # required, usually this should be company name without space. Only alphanumeric characters and underscores are allowed.
+org: defi # required, usually this should be company name without space. Only alphanumeric characters and underscores are allowed.
 kind: stellar # chain name
 network: mainnet # chain network
 version: 0.0.2
