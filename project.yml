@@ -2,6 +2,6 @@ specVersion: 0.0.1 # not used for now
 org: defi # required, usually this should be company name without space. Only alphanumeric characters and underscores are allowed.
 kind: stellar # chain name
 network: mainnet # chain network
-version: 0.0.3
+version: 0.0.4
 name: stellar-zrunner # required, not space or special chars allowed, must be consistent with the project folder name
 githubRepo: "https://github.com/Zettablock/stellar-zrunner"
