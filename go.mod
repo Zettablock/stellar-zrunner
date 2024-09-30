@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/Code-Hex/go-generics-cache v1.5.1
-	github.com/Zettablock/zsource v0.2.0
+	github.com/Zettablock/zsource v0.3.0
 	github.com/bitly/go-simplejson v0.5.1
 	github.com/lib/pq v1.10.9
 	gorm.io/gorm v1.25.9
