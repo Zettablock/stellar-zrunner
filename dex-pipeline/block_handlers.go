@@ -41,7 +41,7 @@ const (
 func HandleBlock(blockNumber int64, deps *utils.Deps) (bool, error) {
 	//deps.Logger.Info("Sui Dex BlockHandler", "block number", blockNumber)
 
-	var eventDao = dao.NewEventDao(deps.Config.Source.Schema, deps.SourceDB)
+	var eventDao = dao.NewEventDao(deps.Config.PipelineConfig.Source.Schema, deps.SourceDB)
 	var evts []dao.Event = eventDao.List(blockNumber)
 
 	pools := make(map[string]dao.StellarDexPool)
