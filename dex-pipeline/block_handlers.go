@@ -440,11 +440,11 @@ func parseSoroswapLiquidityAction(evt *dao.Event) (dao.StellarDexLiquidityAction
 		data.ActionType = evt.Topic[1]
 		data.UserType = rawData.Get("to").Get("Address").Get("type").MustString()
 		data.UserAccount = rawData.Get("to").Get("Address").Get("address").MustString()
-		data.Amount0 = strconv.FormatInt(rawData.Get("amount_0").MustInt64(), 10)
-		data.Amount1 = strconv.FormatInt(rawData.Get("amount_1").MustInt64(), 10)
+		data.AmountA = strconv.FormatInt(rawData.Get("amount_0").MustInt64(), 10)
+		data.AmountB = strconv.FormatInt(rawData.Get("amount_1").MustInt64(), 10)
 		data.Liquidity = strconv.FormatInt(rawData.Get("liquidity").MustInt64(), 10)
-		data.NewReserve0 = strconv.FormatInt(rawData.Get("new_reserve_0").MustInt64(), 10)
-		data.NewReserve1 = strconv.FormatInt(rawData.Get("new_reserve_1").MustInt64(), 10)
+		data.NewReserveA = strconv.FormatInt(rawData.Get("new_reserve_0").MustInt64(), 10)
+		data.NewReserveB = strconv.FormatInt(rawData.Get("new_reserve_1").MustInt64(), 10)
 		data.ParsedJSON = evtValue
 	}
 	return data, nil
@@ -472,13 +472,13 @@ func parsesPhoenixLiquidityAction(evt *dao.Event, data *dao.StellarDexLiquidityA
 		}
 	} else {
 		if evt.Topic[1] == "token_a-amount" {
-			data.Amount0 = evt.Value
+			data.AmountA = evt.Value
 		} else if evt.Topic[1] == "token_b-amount" {
-			data.Amount1 = evt.Value
+			data.AmountB = evt.Value
 		} else if evt.Topic[1] == "return_amount_a" {
-			data.NewReserve0 = evt.Value
+			data.NewReserveA = evt.Value
 		} else if evt.Topic[1] == "return_amount_b" {
-			data.NewReserve1 = evt.Value
+			data.NewReserveB = evt.Value
 		} else if evt.Topic[1] == "shares_amount" {
 			data.Liquidity = evt.Value
 		}
@@ -504,11 +504,11 @@ func parseLiquidityAction(evt *dao.Event) dao.StellarDexLiquidityAction {
 		TokenAAccount:   "",
 		TokenBType:      "",
 		TokenBAccount:   "",
-		Amount0:         "",
-		Amount1:         "",
+		AmountA:         "",
+		AmountB:         "",
 		Liquidity:       "",
-		NewReserve0:     "",
-		NewReserve1:     "",
+		NewReserveA:     "",
+		NewReserveB:     "",
 		ParsedJSON:      "",
 		Ledger:          evt.Ledger,
 		LedgerClosedAt:  evt.LedgerClosedAt,
@@ -529,10 +529,10 @@ func parseSoroswapSwap(evt *dao.Event) (dao.StellarDexSwap, error) {
 	} else {
 		data.UserType = rawData.Get("to").Get("Address").Get("type").MustString()
 		data.UserAccount = rawData.Get("to").Get("Address").Get("address").MustString()
-		data.Amount0In = strconv.FormatInt(rawData.Get("amount_0_in").MustInt64(), 10)
-		data.Amount0Out = strconv.FormatInt(rawData.Get("amount_0_out").MustInt64(), 10)
-		data.Amount1In = strconv.FormatInt(rawData.Get("amount_1_in").MustInt64(), 10)
-		data.Amount1Out = strconv.FormatInt(rawData.Get("amount_1_out").MustInt64(), 10)
+		data.AmountAIn = strconv.FormatInt(rawData.Get("amount_0_in").MustInt64(), 10)
+		data.AmountAOut = strconv.FormatInt(rawData.Get("amount_0_out").MustInt64(), 10)
+		data.AmountBIn = strconv.FormatInt(rawData.Get("amount_1_in").MustInt64(), 10)
+		data.AmountBOut = strconv.FormatInt(rawData.Get("amount_1_out").MustInt64(), 10)
 		data.ParsedJSON = evtValue
 	}
 	return data, nil
@@ -560,9 +560,9 @@ func parsesPhoenixSwap(evt *dao.Event, data *dao.StellarDexSwap) error {
 		}
 	} else {
 		if evt.Topic[1] == "offer_amount" {
-			data.Amount0Out = evt.Value
+			data.AmountAOut = evt.Value
 		} else if evt.Topic[1] == "return_amount" {
-			data.Amount1In = evt.Value
+			data.AmountBIn = evt.Value
 		} else if evt.Topic[1] == "spread_amount" {
 			num, _ := strconv.ParseInt(evt.Value, 10, 32)
 			data.SpreadAmount = int32(num)
@@ -591,10 +591,10 @@ func parseSwap(evt *dao.Event) dao.StellarDexSwap {
 		TokenAAccount:     "",
 		TokenBType:        "",
 		TokenBAccount:     "",
-		Amount0In:         "0",
-		Amount1In:         "0",
-		Amount0Out:        "0",
-		Amount1Out:        "0",
+		AmountAIn:         "0",
+		AmountBIn:         "0",
+		AmountAOut:        "0",
+		AmountBOut:        "0",
 		SpreadAmount:      0,
 		ReferralFeeAmount: 0,
 		ParsedJSON:        "",

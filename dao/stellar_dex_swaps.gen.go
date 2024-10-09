@@ -21,10 +21,10 @@ type StellarDexSwap struct {
 	TokenAAccount     string         `gorm:"column:token_a_account" json:"token_a_account"`
 	TokenBType        string         `gorm:"column:token_b_type" json:"token_b_type"`
 	TokenBAccount     string         `gorm:"column:token_b_account" json:"token_b_account"`
-	Amount0In         string         `gorm:"column:amount_0_in" json:"amount_0_in"`
-	Amount1In         string         `gorm:"column:amount_1_in" json:"amount_1_in"`
-	Amount0Out        string         `gorm:"column:amount_0_out" json:"amount_0_out"`
-	Amount1Out        string         `gorm:"column:amount_1_out" json:"amount_1_out"`
+	AmountAIn         string         `gorm:"column:amount_a_in" json:"amount_a_in"`
+	AmountBIn         string         `gorm:"column:amount_b_in" json:"amount_b_in"`
+	AmountAOut        string         `gorm:"column:amount_a_out" json:"amount_a_out"`
+	AmountBOut        string         `gorm:"column:amount_b_out" json:"amount_b_out"`
 	SpreadAmount      int32          `gorm:"column:spread_amount" json:"spread_amount"`
 	ReferralFeeAmount int32          `gorm:"column:referral_fee_amount" json:"referral_fee_amount"`
 	ParsedJSON        string         `gorm:"column:parsed_json;type:jsonb" json:"parsed_json"`

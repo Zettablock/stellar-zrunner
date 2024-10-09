@@ -22,11 +22,11 @@ type StellarDexLiquidityAction struct {
 	TokenAAccount   string         `gorm:"column:token_a_account" json:"token_a_account"`
 	TokenBType      string         `gorm:"column:token_b_type" json:"token_b_type"`
 	TokenBAccount   string         `gorm:"column:token_b_account" json:"token_b_account"`
-	Amount0         string         `gorm:"column:amount_0" json:"amount_0"`
-	Amount1         string         `gorm:"column:amount_1" json:"amount_1"`
+	AmountA         string         `gorm:"column:amount_a" json:"amount_a"`
+	AmountB         string         `gorm:"column:amount_b" json:"amount_b"`
 	Liquidity       string         `gorm:"column:liquidity" json:"liquidity"`
-	NewReserve0     string         `gorm:"column:new_reserve_0" json:"new_reserve_0"`
-	NewReserve1     string         `gorm:"column:new_reserve_1" json:"new_reserve_1"`
+	NewReserveA     string         `gorm:"column:new_reserve_a" json:"new_reserve_a"`
+	NewReserveB     string         `gorm:"column:new_reserve_b" json:"new_reserve_b"`
 	ParsedJSON      string         `gorm:"column:parsed_json;type:jsonb" json:"parsed_json"`
 	Ledger          int64          `gorm:"column:ledger" json:"ledger"`
 	LedgerClosedAt  time.Time      `gorm:"column:ledger_closed_at" json:"ledger_closed_at"`
